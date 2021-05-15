@@ -99,6 +99,7 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인하지 않았습니다.")
 		}
+		conn.Close()
 	}
 	if m.Content == "!"+"login" {
 		var temp_userid string
