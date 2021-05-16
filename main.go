@@ -22,6 +22,13 @@ type weapon struct {
 	defense int
 }
 
+type field struct {
+	monsterKind string
+	fosition_x  int
+	foistion_y  int
+	attribute   int // 0 : fight 1 : shop
+}
+
 func init() {
 	flag.StringVar(&Token, "t", "", "Bot Token")
 	flag.Parse()
@@ -59,6 +66,10 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 	userid := m.Author.ID
 	// usr end
 
+	// map start
+	forest := field{monsterKind: "slime", fosition_x: 0, foistion_y: 0, attribute: 0}
+	// map end
+
 	// weapon start
 	stick := weapon{damage: 2, defense: 1}       // 나뭇가지
 	bambooSpear := weapon{damage: 5, defense: 0} // 죽창
@@ -76,7 +87,7 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "https://www.youtube.com/watch?v=earHqoVE4HY")
 	}
 	if m.Content == "!"+"img" {
-		s.ChannelMessageSend(m.ChannelID, "https://user-images.githubusercontent.com/77112874/116785747-2aa34b00-aad6-11eb-8921-f82cb5932434.gif")
+		s.ChannelMessageSend(m.ChannelID, "https://cdn.discordapp.com/attachments/842760181447131187/843145552324853770/7c4038d8061f97ea.jpg")
 	}
 	// just end
 
@@ -98,6 +109,234 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "무기 종류\n\n--------------------"+"\n나뭇가지\n\n공격력 = "+transTypeIntToString(stick.damage)+"\n방어력 = "+transTypeIntToString(stick.defense)+"\n--------------------"+"\n죽창\n\n공격력 = "+transTypeIntToString(bambooSpear.damage)+"\n방어력 = "+transTypeIntToString(bambooSpear.defense)+"\n--------------------"+"\n짱돌\n\n공격력 = "+transTypeIntToString(stone.damage)+"\n방어력 = "+transTypeIntToString(stone.defense)+"\n--------------------"+"\n지팡이\n\n공격력 = "+transTypeIntToString(cane.damage)+"\n방어력 = "+transTypeIntToString(cane.defense)+"\n--------------------"+"\n녹슨 검\n\n공격력 = "+transTypeIntToString(rustySword.damage)+"\n방어력 = "+transTypeIntToString(rustySword.defense)+"\n--------------------")
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인하지 않았습니다.")
+		}
+		conn.Close()
+	}
+	if m.Content == "!"+"myfield" {
+		var conncheck int
+		var user_field string
+		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
+			return
+		}
+		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error")
+			return
+		}
+		if conncheck == 1 {
+			var userx int
+			var usery int
+			err = conn.QueryRow("select fieldname from userpos where userid = ?", userid).Scan(&user_field)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			s.ChannelMessageSend(m.ChannelID, "나의 위치\n\n--------------------\n")
+			if userx == 0 && usery == 0 {
+				s.ChannelMessageSend(m.ChannelID, user_field+"\n\n나오는 몬스터 = "+forest.monsterKind+"\n\n위치\n(! 가 유저의 위치입니다.)\n"+mapString(forest.fosition_x, forest.attribute)+"\n--------------------")
+			} else {
+				var userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, "주요한 맵이 아니므로 정보가 없습니다.\n"+mapString(userx, usery)+"\n--------------------")
+			}
+		}
+		conn.Close()
+	}
+	if m.Content == "!"+"right" {
+		var conncheck int
+		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
+			return
+		}
+		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error")
+			return
+		}
+		if conncheck == 1 {
+			var userx int
+			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			if userx < 9 {
+				changex := userx + 1
+				upd, _ := conn.Exec("update userpos set userx = ? where userid = ?", changex, userid)
+				upd_check, _ := upd.RowsAffected()
+				var change_userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&change_userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(change_userx, usery)+"\n--------------------")
+				}
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+			}
+		}
+		conn.Close()
+	}
+	if m.Content == "!"+"left" {
+		var conncheck int
+		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
+			return
+		}
+		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error")
+			return
+		}
+		if conncheck == 1 {
+			var userx int
+			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			if userx > 0 {
+				changex := userx - 1
+				upd, _ := conn.Exec("update userpos set userx = ? where userid = ?", changex, userid)
+				upd_check, _ := upd.RowsAffected()
+				var change_userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&change_userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(change_userx, usery)+"\n--------------------")
+				}
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+			}
+		}
+		conn.Close()
+	}
+	if m.Content == "!"+"up" {
+		var conncheck int
+		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
+			return
+		}
+		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error")
+			return
+		}
+		if conncheck == 1 {
+			var usery int
+			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			if usery > 0 {
+				changey := usery - 1
+				upd, _ := conn.Exec("update userpos set usery = ? where userid = ?", changey, userid)
+				upd_check, _ := upd.RowsAffected()
+				var userx int
+				var change_usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&change_usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(userx, change_usery)+"\n--------------------")
+				}
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+			}
+		}
+		conn.Close()
+	}
+	if m.Content == "!"+"down" {
+		var conncheck int
+		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
+			return
+		}
+		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error")
+			return
+		}
+		if conncheck == 1 {
+			var usery int
+			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			if usery < 9 {
+				changey := usery + 1
+				upd, _ := conn.Exec("update userpos set usery = ? where userid = ?", changey, userid)
+				upd_check, _ := upd.RowsAffected()
+				var userx int
+				var change_usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&change_usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(userx, change_usery)+"\n--------------------")
+				}
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+			}
 		}
 		conn.Close()
 	}
@@ -123,9 +362,14 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 				s.ChannelMessageSend(m.ChannelID, "자동 로그인에 실패했습니다.")
 				return
 			}
+			ins_3, err := conn.Exec("insert into userpos(userid) values(?)", userid)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "자동 로그인에 실패했습니다.")
+			}
 			ins_check_1, _ := ins_1.RowsAffected()
 			ins_check_2, _ := ins_2.RowsAffected()
-			if ins_check_1 == 1 && ins_check_2 == 1 {
+			ins_check_3, _ := ins_3.RowsAffected()
+			if ins_check_1 == 1 && ins_check_2 == 1 && ins_check_3 == 1 {
 				upd, _ := conn.Exec("update user set conncheck = 1 where userid = ?", userid)
 				upd_check, _ := upd.RowsAffected()
 				if upd_check == 1 {
@@ -208,6 +452,27 @@ func transTypeIntToString(n int) string {
 	str := ""
 	if n < 10 {
 		str = str + string(n+48)
+	}
+	return str
+}
+
+func mapString(x int, y int) string {
+	var strArr [10][61]byte
+	str := ""
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 60; j++ {
+			if j%6 == 0 {
+				strArr[i][j] = '.'
+			} else {
+				strArr[i][j] = ' '
+			}
+			if i == y && j == (x*6) {
+				strArr[i][j] = '!'
+			}
+			str = str + string(strArr[i][j])
+		}
+		strArr[i][60] = '\n'
+		str = str + string(strArr[i][60])
 	}
 	return str
 }
