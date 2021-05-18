@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +68,10 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 	userid := m.Author.ID
 	// usr end
 
+	//server start
+	serverid := m.GuildID
+	//server end
+
 	// map start
 	forest := field{monsterKind: "slime", fosition_x: 0, foistion_y: 0, attribute: 0}
 	// map end
@@ -78,57 +84,49 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 	rustySword := weapon{damage: 7, defense: 2}  // 녹슨 검
 	// weapon end
 
-	if m.Content == "!"+"help" {
-		s.ChannelMessageSend(m.ChannelID, "이론Bot의 명령어 모음\n\n\n!help : 도움말을 출력합니다.\n\n\n그냥 만들어둔 기능\n\n!youtubelink : 그냥 개발자가 추천하는 유튜브 영상 링크 출력\n\n!img : 그냥 개발자가 아무거나 올린 이미지 출력\n\n\n게임 명령어\n\n!login : 로그인을 실행합니다. \n만약 처음 로그인을 한다면 자동 로그인을 실시합니다.\n\n!logout : 로그아웃 합니다.\n\n!weaponlist : 현재 게임상 존재하는 무기를 출력합니다.\n\n!status : 본인 계정의 레벨과 경험치를 출력합니다.\n\n\n")
+	slice := strings.Split(m.Content, " ")
+
+	if m.Content == cognition(serverid)+"help" {
+		s.ChannelMessageSend(m.ChannelID, "이론Bot의 명령어 모음\n\n\n"+cognition(serverid)+"help : 도움말을 출력합니다.\n\n\n그냥 만들어둔 기능\n\n"+cognition(serverid)+"youtubelink : 그냥 개발자가 추천하는 유튜브 영상 링크 출력\n\n"+cognition(serverid)+"img : 그냥 개발자가 아무거나 올린 이미지 출력\n\n\n게임 명령어\n\n"+cognition(serverid)+"login : 로그인을 실행합니다. \n만약 처음 로그인을 한다면 자동 로그인을 실시합니다.\n\n"+cognition(serverid)+"logout : 로그아웃 합니다.\n\n"+cognition(serverid)+"weaponlist : 현재 게임상 존재하는 무기를 출력합니다.\n\n"+cognition(serverid)+"status : 본인 계정의 레벨과 경험치를 출력합니다.\n\n\n")
 	}
 
 	// just start
-	if m.Content == "!"+"youtubelink" {
+	if m.Content == cognition(serverid)+"youtubelink" {
 		s.ChannelMessageSend(m.ChannelID, "https://www.youtube.com/watch?v=earHqoVE4HY")
 	}
-	if m.Content == "!"+"img" {
+	if m.Content == cognition(serverid)+"img" {
 		s.ChannelMessageSend(m.ChannelID, "https://cdn.discordapp.com/attachments/842760181447131187/843145552324853770/7c4038d8061f97ea.jpg")
+	}
+	if slice[0] == cognition(serverid)+"changecog" {
+		conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		upd, err := conn.Exec("update cognition set cognition = ? where serverid = ?", slice[1], serverid)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "변경 실패했습니다.")
+		}
+		upd_check, _ := upd.RowsAffected()
+		if upd_check == 1 {
+			s.ChannelMessageSend(m.ChannelID, "정상적으로 변경되었습니다.")
+		}
+		conn.Close()
 	}
 	// just end
 
 	// game start
-	if m.Content == "!"+"weaponlist" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
+	if m.Content == cognition(serverid)+"weaponlist" {
 		// "\n(weaponName)\n\n공격력 = "+transTypeIntToString((weaponName).damage)+"\n방어력 = "+transTypeIntToString((weaponName).defense)+"\n--------------------"
-		if conncheck == 1 {
+		if loginCheck(userid) {
 			s.ChannelMessageSend(m.ChannelID, "무기 종류\n\n--------------------"+"\n나뭇가지\n\n공격력 = "+transTypeIntToString(stick.damage)+"\n방어력 = "+transTypeIntToString(stick.defense)+"\n--------------------"+"\n죽창\n\n공격력 = "+transTypeIntToString(bambooSpear.damage)+"\n방어력 = "+transTypeIntToString(bambooSpear.defense)+"\n--------------------"+"\n짱돌\n\n공격력 = "+transTypeIntToString(stone.damage)+"\n방어력 = "+transTypeIntToString(stone.defense)+"\n--------------------"+"\n지팡이\n\n공격력 = "+transTypeIntToString(cane.damage)+"\n방어력 = "+transTypeIntToString(cane.defense)+"\n--------------------"+"\n녹슨 검\n\n공격력 = "+transTypeIntToString(rustySword.damage)+"\n방어력 = "+transTypeIntToString(rustySword.defense)+"\n--------------------")
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인하지 않았습니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"myfield" {
-		var conncheck int
-		var user_field string
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"myfield" {
+		if loginCheck(userid) {
 			var userx int
 			var usery int
-			err = conn.QueryRow("select fieldname from userpos where userid = ?", userid).Scan(&user_field)
+			var user_field string
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select fieldname from userpos where userid = ?", userid).Scan(&user_field)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -145,40 +143,32 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 			s.ChannelMessageSend(m.ChannelID, "나의 위치\n\n--------------------\n")
 			if userx == 0 && usery == 0 {
-				s.ChannelMessageSend(m.ChannelID, user_field+"\n\n나오는 몬스터 = "+forest.monsterKind+"\n\n위치\n(! 가 유저의 위치입니다.)\n"+mapString(forest.fosition_x, forest.attribute)+"\n--------------------")
+				s.ChannelMessageSend(m.ChannelID, "포레스트\n\n나오는 몬스터 = "+forest.monsterKind+"\n\n위치\n(! 가 유저의 위치입니다.)\n"+mapString(forest.fosition_x, forest.foistion_y)+"\n--------------------")
 			} else {
-				var userx int
-				var usery int
-				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				var user_x int
+				var user_y int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&user_x)
 				if err != nil {
 					s.ChannelMessageSend(m.ChannelID, "error")
 					return
 				}
-				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&user_y)
 				if err != nil {
 					s.ChannelMessageSend(m.ChannelID, "error")
 					return
 				}
-				s.ChannelMessageSend(m.ChannelID, "주요한 맵이 아니므로 정보가 없습니다.\n"+mapString(userx, usery)+"\n--------------------")
+				s.ChannelMessageSend(m.ChannelID, "주요한 맵이 아니므로 정보가 없습니다.\n"+mapString(user_x, user_y)+"\n--------------------")
 			}
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인을 먼저 해야합니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"right" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"right" {
+		if loginCheck(userid) {
 			var userx int
-			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -203,26 +193,30 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(change_userx, usery)+"\n--------------------")
 				}
 			} else {
-				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+				var userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.\n\n--------------------\n"+"현재 "+username+"의 위치입니다.\n\n"+mapString(userx, usery)+"\n--------------------")
 			}
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인을 먼저 해야합니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"left" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"left" {
+		if loginCheck(userid) {
 			var userx int
-			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -247,26 +241,30 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(change_userx, usery)+"\n--------------------")
 				}
 			} else {
-				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+				var userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.\n\n--------------------\n"+"현재 "+username+"의 위치입니다.\n\n"+mapString(userx, usery)+"\n--------------------")
 			}
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인을 먼저 해야합니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"up" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"up" {
+		if loginCheck(userid) {
 			var usery int
-			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -291,26 +289,30 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(userx, change_usery)+"\n--------------------")
 				}
 			} else {
-				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+				var userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.\n\n--------------------\n"+"현재 "+username+"의 위치입니다.\n\n"+mapString(userx, usery)+"\n--------------------")
 			}
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인을 먼저 해야합니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"down" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"down" {
+		if loginCheck(userid) {
 			var usery int
-			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -335,19 +337,29 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 					s.ChannelMessageSend(m.ChannelID, username+"의 위치\n(!가 현재 위치입니다.)\n--------------------\n"+mapString(userx, change_usery)+"\n--------------------")
 				}
 			} else {
-				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.")
+				var userx int
+				var usery int
+				err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "error")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, "이동 불가능 지역입니다.\n\n--------------------\n"+"현재 "+username+"의 위치입니다.\n\n"+mapString(userx, usery)+"\n--------------------")
 			}
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"login" {
+	if m.Content == cognition(serverid)+"login" {
 		var temp_userid string
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select userid from user where userid = ?", userid).Scan(&temp_userid)
+		conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+		err := conn.QueryRow("select userid from user where userid = ?", userid).Scan(&temp_userid)
 		if err != nil {
 			s.ChannelMessageSend(m.ChannelID, "로그인 실패...")
 			time.Sleep(1000)
@@ -390,46 +402,25 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		conn.Close()
 	}
-	if m.Content == "!"+"logout" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 0 {
-			s.ChannelMessageSend(m.ChannelID, "아직 로그인하지 않았습니다.")
-			return
-		} else if conncheck == 1 {
+	if m.Content == cognition(serverid)+"logout" {
+		if loginCheck(userid) {
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
 			upd, _ := conn.Exec("update user set conncheck = 0 where userid = ?", userid)
 			upd_check, _ := upd.RowsAffected()
 			if upd_check == 1 {
 				s.ChannelMessageSend(m.ChannelID, "로그아웃에 성공하였습니다.")
 			}
 			upd_check = 0
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
 		}
-		conn.Close()
 	}
-	if m.Content == "!"+"status" {
-		var conncheck int
-		conn, err := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "데이터 베이스 연결에 실패했습니다.")
-			return
-		}
-		err = conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
-		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "error")
-			return
-		}
-		if conncheck == 1 {
+	if m.Content == cognition(serverid)+"status" {
+		if loginCheck(userid) {
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
 			var level, exp string
-			err = conn.QueryRow("select level from status where userid = ?", userid).Scan(&level)
+			err := conn.QueryRow("select level from status where userid = ?", userid).Scan(&level)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "스테이터스를 불러들일 수 없습니다.")
 				return
@@ -441,11 +432,28 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 레벨 : "+level+" LV")
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 경험치 : "+exp+" EXP")
+			conn.Close()
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
 		}
 	}
 	// game end
+}
+
+func loginCheck(userid string) bool {
+	var conncheck int
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	err := conn.QueryRow("select conncheck from user where userid = ?", userid).Scan(&conncheck)
+	if err == nil {
+		if conncheck == 1 {
+			conn.Close()
+			return true
+		} else {
+			conn.Close()
+			return false
+		}
+	}
+	return false
 }
 
 func transTypeIntToString(n int) string {
@@ -454,6 +462,17 @@ func transTypeIntToString(n int) string {
 		str = str + string(n+48)
 	}
 	return str
+}
+
+func cognition(serverid string) string {
+	var cognition string
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	err := conn.QueryRow("select cognition from cognition where serverid = ?", serverid).Scan(&cognition)
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn.Close()
+	return cognition
 }
 
 func mapString(x int, y int) string {
