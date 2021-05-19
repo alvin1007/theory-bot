@@ -112,10 +112,10 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// just start
 	if m.Content == cognition(serverid)+"youtubelink" {
-		s.ChannelMessageSend(m.ChannelID, "https://www.youtube.com/watch?v=earHqoVE4HY")
+		s.ChannelMessageSend(m.ChannelID, "https://youtu.be/jz_Jozym5DM")
 	}
 	if m.Content == cognition(serverid)+"img" {
-		s.ChannelMessageSend(m.ChannelID, "https://cdn.discordapp.com/attachments/842760181447131187/843145552324853770/7c4038d8061f97ea.jpg")
+		s.ChannelMessageSend(m.ChannelID, "https://cdn.discordapp.com/attachments/843111989735063585/844564052205633626/150619_5fb4b9dbde844.png")
 	}
 	if slice[0] == cognition(serverid)+"changecog" {
 		conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
@@ -126,6 +126,8 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		upd_check, _ := upd.RowsAffected()
 		if upd_check == 1 {
 			s.ChannelMessageSend(m.ChannelID, "정상적으로 변경되었습니다.")
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "이미 설정된 인식어입니다.")
 		}
 		conn.Close()
 	}
