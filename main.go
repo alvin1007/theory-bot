@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
@@ -29,6 +30,17 @@ type field struct {
 	fosition_x  int
 	foistion_y  int
 	attribute   int // 0 : fight 1 : shop
+}
+
+type monster struct {
+	monstername  string
+	hp           int
+	damage       int
+	shield       int
+	money        int
+	exp          int
+	weaponname   []string
+	weaponrandom []int
 }
 
 func init() {
@@ -77,12 +89,20 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// map end
 
 	// weapon start
+	// stage 1 start
+	var weaponname1 = []string{"stick", "bambooSpear", "stone", "cane", "rustySword"}
+	var weaponrandom1 = []int{50, 30, 10, 7, 3}
 	stick := weapon{damage: 2, defense: 1}       // 나뭇가지
 	bambooSpear := weapon{damage: 5, defense: 0} // 죽창
 	stone := weapon{damage: 2, defense: 8}       // 짱돌
 	cane := weapon{damage: 3, defense: 5}        // 지팡이
 	rustySword := weapon{damage: 7, defense: 2}  // 녹슨 검
+	//stage 1 end
 	// weapon end
+
+	// monster start
+	slime := monster{monstername: "슬라임", hp: 50, damage: 5, shield: 2, money: 1, exp: 5, weaponname: weaponname1, weaponrandom: weaponrandom1}
+	// monster end
 
 	slice := strings.Split(m.Content, " ")
 
@@ -124,14 +144,8 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if loginCheck(userid) {
 			var userx int
 			var usery int
-			var user_field string
 			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
-			err := conn.QueryRow("select fieldname from userpos where userid = ?", userid).Scan(&user_field)
-			if err != nil {
-				s.ChannelMessageSend(m.ChannelID, "error")
-				return
-			}
-			err = conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			err := conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "error")
 				return
@@ -142,8 +156,8 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 				return
 			}
 			s.ChannelMessageSend(m.ChannelID, "나의 위치\n\n--------------------\n")
-			if userx == 0 && usery == 0 {
-				s.ChannelMessageSend(m.ChannelID, "포레스트\n\n나오는 몬스터 = "+forest.monsterKind+"\n\n위치\n(! 가 유저의 위치입니다.)\n"+mapString(forest.fosition_x, forest.foistion_y)+"\n--------------------")
+			if userx == forest.fosition_x && usery == forest.foistion_y {
+				s.ChannelMessageSend(m.ChannelID, "포레스트\n\n나오는 몬스터 = "+slime.monstername+"\n\n위치\n(! 가 유저의 위치입니다.)\n"+mapString(forest.fosition_x, forest.foistion_y)+"\n--------------------")
 			} else {
 				var user_x int
 				var user_y int
@@ -378,10 +392,20 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "자동 로그인에 실패했습니다.")
 			}
+			ins_4, err := conn.Exec("insert into fight(userid) values(?)", userid)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "자동 로그인에 실패했습니다.")
+			}
+			ins_5, err := conn.Exec("insert into usermoney(userid) values(?)", userid)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "자동 로그인에 실패했습니다.")
+			}
 			ins_check_1, _ := ins_1.RowsAffected()
 			ins_check_2, _ := ins_2.RowsAffected()
 			ins_check_3, _ := ins_3.RowsAffected()
-			if ins_check_1 == 1 && ins_check_2 == 1 && ins_check_3 == 1 {
+			ins_check_4, _ := ins_4.RowsAffected()
+			ins_check_5, _ := ins_5.RowsAffected()
+			if ins_check_1 == 1 && ins_check_2 == 1 && ins_check_3 == 1 && ins_check_4 == 1 && ins_check_5 == 1 {
 				upd, _ := conn.Exec("update user set conncheck = 1 where userid = ?", userid)
 				upd_check, _ := upd.RowsAffected()
 				if upd_check == 1 {
@@ -420,6 +444,7 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if loginCheck(userid) {
 			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
 			var level, exp string
+			var money string
 			err := conn.QueryRow("select level from status where userid = ?", userid).Scan(&level)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "스테이터스를 불러들일 수 없습니다.")
@@ -430,14 +455,88 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 				s.ChannelMessageSend(m.ChannelID, "스테이터스를 불러들일 수 없습니다.")
 				return
 			}
+			err = conn.QueryRow("select money from usermoney where userid = ?", userid).Scan(&money)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "스테이터스를 불러들일 수 없습니다.")
+				return
+			}
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 레벨 : "+level+" LV")
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 경험치 : "+exp+" EXP")
+			s.ChannelMessageSend(m.ChannelID, username+" 님의 골드 : "+money+" 골드")
+			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
+		}
+	}
+	if m.Content == cognition(serverid)+"goavt" {
+		if loginCheck(userid) {
+			var userx int
+			var usery int
+			var fieldname string
+			conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+			err := conn.QueryRow("select userx from userpos where userid = ?", userid).Scan(&userx)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			err = conn.QueryRow("select usery from userpos where userid = ?", userid).Scan(&usery)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "error")
+				return
+			}
+			fieldname = fieldName(userx, usery)
+			if fieldname == "실패" {
+				s.ChannelMessageSend(m.ChannelID, "모험을 떠날 수 있는 지역이 아닙니다.")
+				return
+			}
+			s.ChannelMessageSend(m.ChannelID, fieldname+"로 모험을 떠나는 중입니다...")
+			time.Sleep(5000)
+			rand.Seed(time.Now().UnixNano())
+			random := rand.Intn(100)
+			if random < 60 {
+				upd, _ := conn.Exec("update fight set fight = 1 where userid = ?", userid)
+				upd_check, _ := upd.RowsAffected()
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, "전투가 시작되었습니다!\n\n")
+				}
+				// 아직 미구현
+				upd, _ = conn.Exec("update fight set fight = 0 where userid = ?", userid)
+				upd_check, _ = upd.RowsAffected()
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, "전투가 종료되었습니다!\n\n")
+				}
+			} else if random >= 60 && random < 90 {
+				rand.Seed(time.Now().UnixNano())
+				money_random := rand.Intn(50)
+				var user_money_random int
+				err := conn.QueryRow("select money from usermoney where userid = ?", userid).Scan(&user_money_random)
+				if err != nil {
+					log.Fatal(err)
+				}
+				upd, _ := conn.Exec("update usermoney set money = ? where userid = ?", user_money_random+money_random, userid)
+				upd_check, _ := upd.RowsAffected()
+				if upd_check == 1 {
+					s.ChannelMessageSend(m.ChannelID, "당신은 모험 중 "+transTypeIntToString(money_random)+" 골드를 획득하셨습니다.")
+				}
+			} else if random >= 90 {
+				// 여기에 무기 랜덤 획득 넣을 예정 꽝도 포함
+				s.ChannelMessageSend(m.ChannelID, "무기를 획득하는 확률입니다.(아직 미구현)")
+			}
 			conn.Close()
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
 		}
 	}
 	// game end
+}
+
+func fieldName(x int, y int) string {
+	// 여기는 맵을 추가할 때마다 추가해야함.
+	if x == 0 && y == 0 {
+		return "포래스트"
+	} else {
+		return "실패"
+	}
 }
 
 func loginCheck(userid string) bool {
@@ -459,7 +558,16 @@ func loginCheck(userid string) bool {
 func transTypeIntToString(n int) string {
 	str := ""
 	if n < 10 {
-		str = str + string(n+48)
+		str = str + string(rune(n+48))
+	} else if n < 100 {
+		n1 := n % 10
+		n2 := n / 10
+		str = string(rune(n2+48)) + string(rune(n1+48))
+	} else if n < 1000 {
+		n2 := n % 100
+		n1 := n % 10
+		n3 := n / 100
+		str = string(rune(n3+48)) + string(rune(n2+48)) + string(rune(n1+48))
 	}
 	return str
 }
