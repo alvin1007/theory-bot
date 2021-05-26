@@ -133,6 +133,18 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	// just end
 
+	// anime-brain start
+	if slice[0] == cognition(serverid)+"bf" {
+		s.ChannelMessageSend(m.ChannelID, bf(slice[1]))
+	}
+	if slice[0] == cognition(serverid)+"genshinbf" {
+		s.ChannelMessageSend(m.ChannelID, genshin_bf(slice))
+	}
+	if slice[0] == cognition(serverid)+"bftogenshin" {
+		s.ChannelMessageSend(m.ChannelID, bfToGenshinbf(slice[1]))
+	}
+	// anime-brain end
+
 	// game start
 	if m.Content == cognition(serverid)+"weaponlist" {
 		// "\n(weaponName)\n\n공격력 = "+transTypeIntToString((weaponName).damage)+"\n방어력 = "+transTypeIntToString((weaponName).defense)+"\n--------------------"
@@ -465,7 +477,22 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 레벨 : "+level+" LV")
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 경험치 : "+exp+" EXP")
 			s.ChannelMessageSend(m.ChannelID, username+" 님의 골드 : "+money+" 골드")
+			s.ChannelMessageSend(m.ChannelID, username+" 님의 공격력 : "+transTypeIntToString(userDamage(userid))+" DAMAGE")
+			s.ChannelMessageSend(m.ChannelID, username+" 님의 방어력 : "+transTypeIntToString(userDefense(userid))+" DEFENSE")
 			conn.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
+		}
+	}
+	if m.Content == cognition(serverid)+"myweapon" {
+		if loginCheck(userid) {
+			userWeapon := userWeaponName(userid)
+			if userWeapon[0] == "" {
+				s.ChannelMessageSend(m.ChannelID, "무기가 없습니다.")
+			}
+			for i := 0; i < len(userWeapon); i++ {
+
+			}
 		} else {
 			s.ChannelMessageSend(m.ChannelID, "로그인 하지 않았습니다.")
 		}
@@ -521,8 +548,15 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 					s.ChannelMessageSend(m.ChannelID, "당신은 모험 중 "+transTypeIntToString(money_random)+" 골드를 획득하셨습니다.")
 				}
 			} else if random >= 90 {
-				// 여기에 무기 랜덤 획득 넣을 예정 꽝도 포함
-				s.ChannelMessageSend(m.ChannelID, "무기를 획득하는 확률입니다.(아직 미구현)")
+				userWeapon := weaponRandom(fieldname, userid)
+				if userWeapon == "fail" {
+					s.ChannelMessageSend(m.ChannelID, "무기 획득에 실패했습니다.")
+					return
+				} else if userWeapon == "w" {
+					s.ChannelMessageSend(m.ChannelID, "이미 획득한 무기입니다.")
+					return
+				}
+				s.ChannelMessageSend(m.ChannelID, userWeapon+"를 획득했습니다.")
 			}
 			conn.Close()
 		} else {
@@ -535,10 +569,168 @@ func messagePrint(s *discordgo.Session, m *discordgo.MessageCreate) {
 func fieldName(x int, y int) string {
 	// 여기는 맵을 추가할 때마다 추가해야함.
 	if x == 0 && y == 0 {
-		return "포래스트"
+		return "포레스트"
 	} else {
 		return "실패"
 	}
+}
+
+func weaponRandom(userField string, userid string) string {
+	//여기는 맵을 추가할 때마다 추가해야함
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	// 후에 개발해야 될 것들
+	if userField == "포레스트" {
+
+		stick := weapon{damage: 2, defense: 1}       // 나뭇가지 70%
+		bambooSpear := weapon{damage: 5, defense: 0} // 죽창 10%
+		stone := weapon{damage: 2, defense: 8}       // 짱돌 5%
+		cane := weapon{damage: 3, defense: 5}        // 지팡이 3%
+		rustySword := weapon{damage: 7, defense: 2}  // 녹슨 검 2%
+
+		rand.Seed(time.Now().UnixNano())
+		random := rand.Intn(100)
+		fmt.Println(random)
+		if random < 70 {
+			if weaponCheck("stick", userid) {
+				_, err := conn.Exec("insert into userweapon(damage, defense, id, weaponname) values(?, ?, ?, ?)", stick.damage, stick.defense, userid, "stick")
+				if err != nil {
+					panic(err)
+				}
+				return "stick"
+			}
+		} else if random < 80 {
+			if weaponCheck("bambooSpear", userid) {
+				_, err := conn.Exec("insert into userweapon(damage, defense, id, weaponname) values(?, ?, ?, ?)", bambooSpear.damage, bambooSpear.defense, userid, "bambooSpear")
+				if err != nil {
+					panic(err)
+				}
+				return "bambooSpear"
+			} else {
+				return "w"
+			}
+		} else if random < 88 {
+			if weaponCheck("stone", userid) {
+				_, err := conn.Exec("insert into userweapon(damage, defense, id, weaponname) values(?, ?, ?, ?)", stone.damage, stone.defense, userid, "stone")
+				if err != nil {
+					panic(err)
+				}
+				return "stone"
+			} else {
+				return "w"
+			}
+		} else if random < 96 {
+			if weaponCheck("cane", userid) {
+				_, err := conn.Exec("insert into userweapon(damage, defense, id, weaponname) values(?, ?, ?, ?)", cane.damage, cane.defense, userid, "cane")
+				if err != nil {
+					panic(err)
+				}
+				return "cane"
+			} else {
+				return "w"
+			}
+		} else if random <= 100 {
+			if weaponCheck("rustySword", userid) {
+				_, err := conn.Exec("insert into userweapon(damage, defense, id, weaponname) values(?, ?, ?, ?)", rustySword.damage, rustySword.defense, userid, "rustySword")
+				if err != nil {
+					panic(err)
+				}
+				return "rustySword"
+			} else {
+				return "w"
+			}
+		}
+	}
+	conn.Close()
+	return "fail"
+}
+
+func userWeaponName(userid string) []string {
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	rows, _ := conn.Query("select weaponname from userweapon where id = ?", userid)
+	i := 0
+	var userWeapon [100]string
+	var weapon string
+	for rows.Next() {
+		err := rows.Scan(&weapon)
+		if err != nil {
+			panic(err)
+		}
+		userWeapon[i] = weapon
+	}
+	conn.Close()
+	return userWeapon[:]
+}
+
+func userDefense(userid string) int {
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	var defense int
+	var userWeaponDefense int
+	var userlevel int
+	err := conn.QueryRow("select level from status where userid = ?", userid).Scan(&userlevel)
+	if err != nil {
+		panic(err)
+	}
+	rows, err := conn.Query("select defense from userweapon where id = ?", userid)
+	if err != nil {
+		userWeaponDefense = 0
+	}
+	for rows.Next() {
+		err := rows.Scan(&userWeaponDefense)
+		if err != nil {
+			panic(err)
+		}
+		defense += userWeaponDefense
+	}
+	defense += userlevel*2 + 5
+	conn.Close()
+	return defense
+}
+
+func userDamage(userid string) int {
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	var damage int
+	var userWeaponDamage int
+	var userlevel int
+	err := conn.QueryRow("select level from status where userid = ?", userid).Scan(&userlevel)
+	if err != nil {
+		panic(err)
+	}
+	rows, err := conn.Query("select damage from userweapon where id = ?", userid)
+	if err != nil {
+		userWeaponDamage = 0
+	}
+	for rows.Next() {
+		err := rows.Scan(&userWeaponDamage)
+		if err != nil {
+			panic(err)
+		}
+		damage += userWeaponDamage
+	}
+	damage += userlevel*2 + 5
+	conn.Close()
+	return damage
+}
+
+func weaponCheck(weaponname string, userid string) bool {
+	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
+	var weapon string
+	rows, err := conn.Query("select weaponname from userweapon where id = ?", userid)
+	if err != nil {
+		conn.Close()
+		return false
+	}
+	for rows.Next() {
+		err := rows.Scan(&weapon)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if weapon == weaponname {
+			conn.Close()
+			return false
+		}
+	}
+	conn.Close()
+	return true
 }
 
 func loginCheck(userid string) bool {
@@ -579,7 +771,12 @@ func cognition(serverid string) string {
 	conn, _ := sql.Open("mysql", "root:alvin1007@tcp(localhost:3306)/game")
 	err := conn.QueryRow("select cognition from cognition where serverid = ?", serverid).Scan(&cognition)
 	if err != nil {
-		log.Fatal(err)
+		_, err = conn.Exec("insert into cognition(serverid) values(?)", serverid)
+		if err != nil {
+			fmt.Println(err)
+			conn.Close()
+			return "err"
+		}
 	}
 	conn.Close()
 	return cognition
@@ -604,4 +801,138 @@ func mapString(x int, y int) string {
 		str = str + string(strArr[i][60])
 	}
 	return str
+}
+
+func bfToGenshinbf(code string) string {
+	cnt := 0
+	output := ""
+	for {
+		if cnt == len(code) {
+			break
+		}
+		if string(code[cnt]) == "+" {
+			output += "호두 "
+		} else if string(code[cnt]) == "-" {
+			output += "벤티 "
+		} else if string(code[cnt]) == ">" {
+			output += "클레 "
+		} else if string(code[cnt]) == "<" {
+			output += "유라 "
+		} else if string(code[cnt]) == "[" {
+			output += "감우 "
+		} else if string(code[cnt]) == "]" {
+			output += "눈나 "
+		} else if string(code[cnt]) == "." {
+			output += "헤으응 "
+		}
+		cnt++
+	}
+	return output
+}
+
+func bf(code string) string {
+	output := ""
+	cnt := 0
+	ptr := 0
+	var ascii [30000]int
+	for {
+		if cnt == len(code) {
+			break
+		}
+		if string(code[cnt]) == "+" {
+			ascii[ptr] += 1
+		} else if string(code[cnt]) == "-" {
+			ascii[ptr] -= 1
+		} else if string(code[cnt]) == ">" {
+			ptr += 1
+		} else if string(code[cnt]) == "<" {
+			ptr -= 1
+		} else if string(code[cnt]) == "[" {
+			if ascii[ptr] == 0 {
+				cnt1 := 1
+				for cnt1 != 0 {
+					cnt++
+					if string(code[cnt]) == "[" {
+						cnt1++
+					} else if string(code[cnt]) == "]" {
+						cnt1--
+					} else {
+						continue
+					}
+				}
+			}
+		} else if string(code[cnt]) == "]" {
+			if ascii[ptr] != 0 {
+				cnt2 := 1
+				for cnt2 != 0 {
+					cnt--
+					if string(code[cnt]) == "]" {
+						cnt2++
+					} else if string(code[cnt]) == "[" {
+						cnt2--
+					} else {
+						continue
+					}
+				}
+			}
+		} else if string(code[cnt]) == "." {
+			output += string(ascii[ptr])
+		}
+		cnt++
+	}
+	return output
+}
+
+func genshin_bf(code []string) string {
+	output := ""
+	cnt := 0
+	ptr := 0
+	var ascii [30000]int
+	for {
+		if cnt == len(code) {
+			break
+		}
+		if code[cnt] == "호두" {
+			ascii[ptr] += 1
+		} else if code[cnt] == "벤티" {
+			ascii[ptr] -= 1
+		} else if code[cnt] == "클레" {
+			ptr += 1
+		} else if code[cnt] == "유라" {
+			ptr -= 1
+		} else if code[cnt] == "감우" {
+			if ascii[ptr] == 0 {
+				cnt1 := 1
+				for cnt1 != 0 {
+					cnt++
+					if code[cnt] == "감우" {
+						cnt1++
+					} else if code[cnt] == "눈나" {
+						cnt1--
+					} else {
+						continue
+					}
+				}
+			}
+		} else if code[cnt] == "눈나" {
+			if ascii[ptr] != 0 {
+				cnt2 := 1
+				for cnt2 != 0 {
+					cnt--
+					if code[cnt] == "눈나" {
+						cnt2++
+					} else if code[cnt] == "감우" {
+						cnt2--
+					} else {
+						continue
+					}
+				}
+			}
+		} else if code[cnt] == "헤으응" {
+			output += string(ascii[ptr])
+		}
+		cnt++
+	}
+	fmt.Print(output)
+	return output
 }
